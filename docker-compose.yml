@@ -1,0 +1,51 @@
+
+
+services:
+  app:
+    build: .
+    image: todoapp:latest
+    ports:
+      - "4001:3000"
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis        # 👈 ADD THIS
+      - REDIS_PORT=6379         # 👈 ADD THIS
+    depends_on:
+      - redis                   # 👈 ADD THIS
+    command: npm start
+
+  app-dev:
+    build:
+      context: .
+      args:
+        NODE_ENV: development
+    image: todoapp:dev
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=1
+      - CHOKIDAR_INTERVAL=300
+      - REDIS_HOST=redis        # 👈 ADD THIS
+      - REDIS_PORT=6379         # 👈 ADD THIS
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    depends_on:
+      - redis                   # 👈 ADD THIS
+    command: sh -c "npm install && npm run dev"
+
+  redis:
+    image: redis:7.2
+    container_name: redis
+    # ports:
+    #   - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--save", "20", "1", "--loglevel", "warning"]
+
+volumes:
+  node_modules:
+  redis_data:
