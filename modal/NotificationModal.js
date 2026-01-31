@@ -1,4 +1,11 @@
+
+const mongoose=require("mongoose")
+
 const notificationSchema = new mongoose.Schema({
+    sendTo: {
+        type: [String],
+        required: true
+      },      
     title: {
         type: String,
         required: true
@@ -12,7 +19,7 @@ const notificationSchema = new mongoose.Schema({
         required: true
     },
      ReminderType: {
-        type: Boolean,
+        type: String,
         enum:["morning","evening","parentSend"],
         required: true
     },

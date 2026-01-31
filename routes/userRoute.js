@@ -12,6 +12,8 @@ userRoute.delete("/",userController.delete)
 userRoute.post("/done",userController.markDone)
 
 userRoute.get("/profile",userController.profile)
+userRoute.get("/notification",userController.notification)
+userRoute.post("/notification",userController.addNotification)
 
 
 

@@ -2,6 +2,7 @@
 const Todo=require("../modal/TodoModal");
 const mongoose = require("mongoose");
 const User=require("../modal/UserModal")
+const Notification=require("../modal/NotificationModal")
 
 exports.getTodo= async(req, res) => {
 
@@ -265,6 +266,113 @@ exports.profile=async (req,res)=>{
 
 
 }
+
+
+
+// =================notification=========
+exports.notification= async(req, res) => {
+
+  try {
+      const {page,limit}=req.query
+      const userId=req.user._id;
+
+      const pageNo=Number(page||"1");
+      const pageLimit=Number(limit||"10");
+      const skip = (pageNo - 1) * pageLimit;
+
+
+
+      if(!userId){
+          return res.status(400).json({
+              success: false,
+              message: "You have must login"
+          })
+      }
+
+      const matcher = {
+        sendTo: { $in: [userId.toString()] }
+      };
+
+      console.log(matcher)
+
+      const notification=await Notification.aggregate([
+        {
+          $match:matcher
+        },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip }, 
+        { $limit: pageLimit }
+      ]);
+
+const totalDoc=await Notification.countDocuments(matcher)
+              
+      res.status(200).json({
+        success: true,
+        message: "Todos fetched successfully",
+        data: notification,
+        pagination:{
+
+          page: pageNo,
+          limit: pageLimit,
+          total:totalDoc,
+          totalPage: Math.ceil(totalDoc / pageLimit)
+
+        }
+        
+      });
+  
+
+      
+  } catch (error) {
+      console.log(error)
+       res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+  })
+      
+  }
+ 
+}
+
+
+exports.addNotification=async(req, res) => {
+
+  try {
+      const {title,description,forChild,ReminderType,sendTo}=req.body;
+    
+
+      if(!title || !description){
+          return res.status(400).json({
+              success: false,
+              message: "Please provide title and description"
+          })
+      }
+
+
+
+      const newNotification=await Notification.create({title,description,forChild,ReminderType,sendTo});
+      await newNotification.save()
+
+              
+      res.status(200).json({
+          success: true,
+          message: "Notification created successfully"
+      })
+
+
+      
+  } catch (error) {
+      console.log(error)
+       res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+  })
+      
+  }
+ 
+}
+
+
 
 
 
