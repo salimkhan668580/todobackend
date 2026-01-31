@@ -335,42 +335,6 @@ const totalDoc=await Notification.countDocuments(matcher)
 }
 
 
-exports.addNotification=async(req, res) => {
-
-  try {
-      const {title,description,forChild,ReminderType,sendTo}=req.body;
-    
-
-      if(!title || !description){
-          return res.status(400).json({
-              success: false,
-              message: "Please provide title and description"
-          })
-      }
-
-
-
-      const newNotification=await Notification.create({title,description,forChild,ReminderType,sendTo});
-      await newNotification.save()
-
-              
-      res.status(200).json({
-          success: true,
-          message: "Notification created successfully"
-      })
-
-
-      
-  } catch (error) {
-      console.log(error)
-       res.status(500).json({
-      success: false,
-      message: "Internal Server Error"
-  })
-      
-  }
- 
-}
 
 
 
