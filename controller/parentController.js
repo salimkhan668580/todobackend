@@ -1,5 +1,7 @@
 const User=require("../modal/UserModal")
 const Todo= require("../modal/TodoModal")
+const Notification= require("../modal/NotificationModal")
+
 const mongoose=require("mongoose")
 
 exports.getAllChildren = async (req, res) => {
@@ -79,6 +81,25 @@ exports.getAllChildren = async (req, res) => {
           total: totalDoc,
           totalPage: Math.ceil(totalDoc / pageLimit)
         }
+      });
+  
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error"
+      });
+    }
+  };
+  
+exports.parentProfile = async (req, res) => {
+    try {
+    
+      res.status(200).json({
+        success: true,
+        message: "Children fetched successfully",
+        data:req.user
+      
       });
   
     } catch (error) {
@@ -324,6 +345,131 @@ exports.getAllChildren = async (req, res) => {
     }
    
   }
+  
+
+
+
+  exports.stats = async (req, res) => {
+    try {
+      const { userId, type = "week" } = req.query;
+  
+      // ---------------- VALIDATIONS ----------------
+      if (!userId) {
+        return res.status(400).json({
+          success: false,
+          message: "userId is required"
+        });
+      }
+  
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid userId"
+        });
+      }
+  
+      // ---------------- DATE RANGE ----------------
+      const now = new Date();
+      let startDate, endDate, days;
+  
+      if (type === "week") {
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        startDate.setDate(now.getDate() - now.getDay() + 1); // Monday
+  
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 7);
+  
+        days = ["M", "T", "W", "T", "F", "S", "S"];
+      }
+  
+      else if (type === "month") {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  
+        days = ["W1", "W2", "W3", "W4"];
+      }
+  
+      else if (type === "year") {
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear() + 1, 0, 1);
+  
+        days = ["Q1", "Q2", "Q3", "Q4"];
+      }
+  
+      else {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid type (week | month | year)"
+        });
+      }
+  
+      // ---------------- AGGREGATION ----------------
+      const result = await Todo.aggregate([
+        {
+          $match: {
+            userId: new mongoose.Types.ObjectId(userId),
+            isDeleted: false,
+            createdAt: { $gte: startDate, $lt: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            assigned: { $sum: 1 },
+            completed: {
+              $sum: {
+                $cond: [{ $eq: ["$isDone", true] }, 1, 0]
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            assigned: 1,
+            completed: 1,
+            percent: {
+              $cond: [
+                { $eq: ["$assigned", 0] },
+                0,
+                {
+                  $round: [
+                    { $multiply: [{ $divide: ["$completed", "$assigned"] }, 100] },
+                    0
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]);
+  
+      // ---------------- FINAL RESPONSE ----------------
+      const data = result[0] || {
+        assigned: 0,
+        completed: 0,
+        percent: 0
+      };
+  
+      return res.status(200).json({
+        success: true,
+        data: {
+          [type.charAt(0).toUpperCase() + type.slice(1)]: {
+            ...data,
+            days
+          }
+        }
+      });
+  
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error"
+      });
+    }
+  };
   
 
 

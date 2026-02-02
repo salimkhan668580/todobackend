@@ -4,12 +4,14 @@ const app = express()
 const authRoute = require('./routes/Auth');
 const parentRoute= require('./routes/ParentRoute');
 const userRoute= require('./routes/userRoute');
+const morgan = require('morgan')
 const port = 3000
 
 dbConnect(); 
 
 
 app.use(express.json());
+app.use(morgan('dev'))
 
 app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);

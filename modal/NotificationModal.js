@@ -18,6 +18,10 @@ const notificationSchema = new mongoose.Schema({
         type: Boolean,
         required: true
     },
+    isRead:{
+        type:Boolean,
+        default:false
+    },
      ReminderType: {
         type: String,
         enum:["morning","evening","parentSend"],

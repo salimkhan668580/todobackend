@@ -12,13 +12,13 @@ exports.login = async(req, res) => {
         }
         const user=await User.findOne({email}).select("+password");
         if(!user){
-            return res.status(400).json({
+            return res.status(401).json({
                 success: false,
                 message: "User not found"
             })
         }
         if(user.password !== password){
-            return res.status(400).json({
+            return res.status(401).json({
                 success: false,
                 message: "Invalid email or password"
             })
@@ -28,7 +28,8 @@ exports.login = async(req, res) => {
         const userData={
             _id: user._id,
             name: user.name,
-            email: user.email
+            email: user.email,
+            role:user.role
         }
 
         res.status(200).json({
