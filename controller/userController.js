@@ -2,7 +2,8 @@
 const Todo=require("../modal/TodoModal");
 const mongoose = require("mongoose");
 const User=require("../modal/UserModal")
-const Notification=require("../modal/NotificationModal")
+const Notification=require("../modal/NotificationModal");
+const { sendPushNotification } = require("../helper/helper");
 
 exports.getTodo= async(req, res) => {
 
@@ -103,6 +104,24 @@ exports.create= async(req, res) => {
         }
         const newTodo=await Todo.create({title,userId});
         await newTodo.save()
+
+
+        // "morning","evening","parentSend"
+    const bodyData={
+          title: "Added parent send notification",
+          description: "This is for test notification homework.",
+          forChild: false,
+          ReminderType: "parentSend",
+          sendTo:["697ced347665a7ec9d9ac688"]
+        }
+        const newNotification= await Notification.create(bodyData)
+        await newNotification.save()
+
+        await sendPushNotification({
+          tokens: "eo9Tzc4JHEKoHpwmxlVl_o:APA91bHkPmFyVJ3e6Kemo0-5UPnmbADyES2X2Bl5GcnH0MDonB1yehRLL24RkNTLNa0cN2HWuELY-wMSKGKwvYih-vbDesNS0ukhPfGnQvl3jLaqrUw7nu0",
+          title:"hello chekc",
+          body:"this is body",
+        });
 
                 
         res.status(200).json({
