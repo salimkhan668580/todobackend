@@ -4,7 +4,9 @@ const app = express()
 const authRoute = require('./routes/Auth');
 const parentRoute= require('./routes/ParentRoute');
 const userRoute= require('./routes/userRoute');
-const morgan = require('morgan')
+const morgan = require('morgan');
+const helper = require('./helper/helper');
+
 const port = 3000
 
 dbConnect(); 
@@ -16,6 +18,41 @@ app.use(morgan('dev'))
 app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
 app.use('/api/parent', parentRoute);
+
+
+
+app.post("/api/pushNotification", async (req, res) => {
+  const { title, body, token } = req.body;
+
+  try {
+    if (!title || !body || !token) {
+      return res.status(400).json({
+        error: "title, body, and token are required",
+      });
+    }
+
+ 
+
+    await helper.sendPushNotification({
+      tokens: token, // ✅ array
+      title,
+      body,
+    });
+
+    return res.status(200).json({
+      message: "Notification has been sent",
+    });
+  } catch (error) {
+    console.error("Push notification error:", error);
+    return res.status(500).json({
+      error: "Failed to send notification",
+    });
+  }
+
+})
+
+
+
 
 
 app.get('/', (req, res) => {
