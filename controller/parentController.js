@@ -2,7 +2,9 @@ const User = require("../modal/UserModal")
 const Todo = require("../modal/TodoModal")
 const Notification = require("../modal/NotificationModal")
 
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
+const logger = require("../helper/logger");
+const { sendPushNotification } = require("../helper/helper");
 
 exports.getAllChildren = async (req, res) => {
   try {
@@ -250,7 +252,8 @@ exports.getChildrenTodoHistory = async (req, res) => {
       {
         $match: {
           _id: new mongoose.Types.ObjectId(userId),
-          role: "children"
+          role: "children",
+       
         }
       },
 
@@ -265,6 +268,7 @@ exports.getChildrenTodoHistory = async (req, res) => {
                 $expr: {
                   $and: [
                     { $eq: ["$userId", "$$userId"] },
+                     { $eq: ["$isDeleted", false] }
 
                   ]
                 }
@@ -310,43 +314,72 @@ exports.getChildrenTodoHistory = async (req, res) => {
 
 
 exports.addNotification = async (req, res) => {
-
   try {
     const { title, description, forChild, ReminderType, sendTo } = req.body;
- 
-    const { _id } = req.user
-
+    const { _id } = req.user;
 
     if (!title || !description) {
       return res.status(400).json({
         success: false,
         message: "Please provide title and description"
-      })
+      });
+    }
+
+    if (!Array.isArray(sendTo) || !sendTo.length) {
+      return res.status(400).json({
+        success: false,
+        message: "sendTo must be an array of userIds"
+      });
     }
 
 
+    const users = await User.find({
+      _id: { $in: sendTo }
+    }).select("fcmToken");
 
-    const newNotification = await Notification.create({ title, description, forChild, ReminderType, sendTo, senderId: _id });
-    await newNotification.save()
 
+    const fcmTokens = users.flatMap(u => u.fcmToken || []);
+
+    if (!fcmTokens.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Please say your children to enable notification"
+      });
+    }
+
+    const uniqueTokens = [...new Set(fcmTokens)];
+
+  
+    const newNotification = await Notification.create({
+      title,
+      description,
+      forChild,
+      ReminderType,
+      sendTo,
+      senderId: _id
+    });
+
+    // 📲 Send push notification
+    await newNotification.save();
+    console.log("uniqueTokens",uniqueTokens)
+    await sendPushNotification(uniqueTokens, title, description);
 
     res.status(200).json({
       success: true,
-      message: "Notification created successfully"
-    })
-
-
+      message: "Notification sent successfully",
+      totalUsers: users.length,
+      totalTokens: uniqueTokens.length
+    });
 
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({
       success: false,
       message: "Internal Server Error"
-    })
-
+    });
   }
+};
 
-}
 
 
 
