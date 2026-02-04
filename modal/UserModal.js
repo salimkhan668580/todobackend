@@ -21,7 +21,12 @@ const userSchema = new mongoose.Schema({
     password:{
         type: String,
         required: true
-    }
+    },
+
+    fcmToken: {
+        type: [String],
+        default: [],
+      },
 },{timestamps: true});
 
 const User = mongoose.model('User', userSchema);

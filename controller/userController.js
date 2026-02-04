@@ -89,6 +89,7 @@ exports.create= async(req, res) => {
     try {
         const {title}=req.body;
         const userId=req.user;
+        console.log("this is user id",userId)
 
         if(!title){
             return res.status(400).json({
@@ -104,26 +105,24 @@ exports.create= async(req, res) => {
         }
         const newTodo=await Todo.create({title,userId});
         await newTodo.save()
-
+  const parent=await User.findOne({email:"mkkhan@gmail.com"})
 
         // "morning","evening","parentSend"
     const bodyData={
-          title: "Added parent send notification",
-          description: "This is for test notification homework.",
+           title:`${userId.name} added a new task`,
+            description:title,
           forChild: false,
           ReminderType: "parentSend",
-          sendTo:["697ced347665a7ec9d9ac688"]
+          sendTo:[parent._id.toString()],
         }
         const newNotification= await Notification.create(bodyData)
         await newNotification.save()
 
         await sendPushNotification({
-          tokens: "eo9Tzc4JHEKoHpwmxlVl_o:APA91bHkPmFyVJ3e6Kemo0-5UPnmbADyES2X2Bl5GcnH0MDonB1yehRLL24RkNTLNa0cN2HWuELY-wMSKGKwvYih-vbDesNS0ukhPfGnQvl3jLaqrUw7nu0",
-          title:"hello chekc",
-          body:"this is body",
-        });
-
-                
+          tokens: parent.fcmToken,
+          title:`${userId.name} added a new task`,
+          body:title,
+        });     
         res.status(200).json({
             success: true,
             message: "Task created successfully"
@@ -192,7 +191,27 @@ exports.markDone = async (req, res) => {
     todo.isDone = true;
     todo.doneTime=Date.now();
     await todo.save();
+    
 
+      const parent=await User.findOne({email:"mkkhan@gmail.com"})
+
+        // "morning","evening","parentSend"
+    const bodyData={
+           title:`${req.user.name} completed a task`,
+            description:todo.title,
+          forChild: false,
+          ReminderType: "parentSend",
+          sendTo:[parent._id.toString()],
+        }
+        const newNotification= await Notification.create(bodyData)
+        await newNotification.save()
+
+        await sendPushNotification({
+          tokens: parent.fcmToken,
+          title:`${req.user.name}  completed a task`,
+          body:todo.title,
+        });     
+      
     return res.status(200).json({
       success: true,
       message: "Task done successfully",

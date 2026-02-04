@@ -6,6 +6,7 @@ const parentRoute= require('./routes/ParentRoute');
 const userRoute= require('./routes/userRoute');
 const morgan = require('morgan');
 const helper = require('./helper/helper');
+const tokenRoute = require('./routes/TokenRoute');
 
 const port = 3000
 
@@ -18,6 +19,10 @@ app.use(morgan('dev'))
 app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
 app.use('/api/parent', parentRoute);
+app.use('/api/token', tokenRoute);
+
+
+
 
 
 
