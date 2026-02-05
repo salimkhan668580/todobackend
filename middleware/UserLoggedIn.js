@@ -14,7 +14,7 @@ const userLoggedIn = async (req, res, next) => {
     }
 
     // 2️⃣ Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, "sdefefwdasdwaefewfwfdw");
 
     // 3️⃣ User find karo
     const user = await User.findById(decoded.id).select("-password");

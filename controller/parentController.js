@@ -361,9 +361,15 @@ exports.addNotification = async (req, res) => {
 
     // 📲 Send push notification
     await newNotification.save();
-    console.log("uniqueTokens",uniqueTokens)
-    await sendPushNotification(uniqueTokens, title, description);
 
+      await sendPushNotification({
+         tokens: uniqueTokens,
+        title, 
+          body: description,
+      }
+);
+    
+    
     res.status(200).json({
       success: true,
       message: "Notification sent successfully",

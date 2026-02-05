@@ -1,0 +1,13 @@
+docker stop todo-backend
+docker rm todo-backend
+
+docker build -t todo-backend .
+
+
+docker run -d \
+  --name todo-backend \
+  -p 4002:3000 \
+  --restart unless-stopped \
+  todo-backend
+
+docker logs -f todo-backend

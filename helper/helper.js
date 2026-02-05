@@ -35,6 +35,7 @@ const sendPushNotification = async ({
   type,
   additionalData = {},
 }) => {
+  console.log("tokens in sender function👉", tokens);
   if (!tokens || tokens.length === 0) return;
 
   console.log("FCM TOKENS RECEIVED 👉", tokens);

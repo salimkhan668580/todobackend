@@ -84,62 +84,91 @@ exports.getTodo= async(req, res) => {
    
 }
 
-exports.create= async(req, res) => {
+exports.create = async (req, res) => {
+  try {
+    const { title } = req.body;
+    const user = req.user; // 👈 full user object
 
-    try {
-        const {title}=req.body;
-        const userId=req.user;
-        console.log("this is user id",userId)
-
-        if(!title){
-            return res.status(400).json({
-                success: false,
-                message: "Please provide title"
-            })
-        }
-        if(!userId){
-            return res.status(400).json({
-                success: false,
-                message: "token not found"
-            })
-        }
-        const newTodo=await Todo.create({title,userId});
-        await newTodo.save()
-  const parent=await User.findOne({email:"mkkhan@gmail.com"})
-
-        // "morning","evening","parentSend"
-    const bodyData={
-           title:`${userId.name} added a new task`,
-            description:title,
-          forChild: false,
-          ReminderType: "parentSend",
-          sendTo:[parent._id.toString()],
-        }
-        const newNotification= await Notification.create(bodyData)
-        await newNotification.save()
-
-        await sendPushNotification({
-          tokens: parent.fcmToken,
-          title:`${userId.name} added a new task`,
-          body:title,
-        });     
-        res.status(200).json({
-            success: true,
-            message: "Task created successfully"
-        })
-
-
-        
-    } catch (error) {
-        console.log(error)
-         res.status(500).json({
+    if (!title) {
+      return res.status(400).json({
         success: false,
-        message: "Internal Server Error"
-    })
-        
+        message: "Please provide title",
+      });
     }
-   
-}
+
+    if (!user || !user._id) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found from token",
+      });
+    }
+
+    /* ===============================
+       1️⃣ Create Todo
+    =============================== */
+    const newTodo = await Todo.create({
+      title,
+      userId: user._id,
+    });
+
+    /* ===============================
+       2️⃣ Find parent by email
+    =============================== */
+    const parent = await User.findOne({
+      email: "mkkhan@gmail.com",
+    });
+
+    /* ===============================
+       3️⃣ Save notification in DB
+    =============================== */
+    if (parent) {
+      const bodyData = {
+        title: `${user.name} added a new task`,
+        description: title,
+        forChild: false,
+        ReminderType: "parentSend",
+        sendTo: [parent._id.toString()],
+      };
+
+      await Notification.create(bodyData);
+
+      /* ===============================
+         4️⃣ Extract FCM tokens safely
+      =============================== */
+      const fcmTokens = Array.isArray(parent.fcmToken)
+        ? parent.fcmToken
+        : [];
+
+      const uniqueTokens = [...new Set(fcmTokens)];
+
+      console.log("✅ Parent FCM Tokens:", uniqueTokens);
+
+      /* ===============================
+         5️⃣ Send push notification
+      =============================== */
+      if (uniqueTokens.length > 0) {
+        await sendPushNotification({
+          tokens: uniqueTokens,
+          title: `${user.name} added a new task`,
+          body: title,
+        });
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Task created successfully",
+    });
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
 
 exports.delete = async (req, res) => {
   try {
@@ -175,52 +204,74 @@ exports.markDone = async (req, res) => {
     const { todoId } = req.body;
 
     const todo = await Todo.findById(todoId);
-
-    const userId=req.user._id
-
+    const userId = req.user._id;
 
     if (!todo) {
       return res.status(404).json({ message: "Todo not found" });
     }
 
-
-    if (todo.userId==userId) {
+    if (todo.userId.toString() !== userId.toString()) {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
+    // ✅ Mark task done
     todo.isDone = true;
-    todo.doneTime=Date.now();
+    todo.doneTime = Date.now();
     await todo.save();
-    
 
-      const parent=await User.findOne({email:"mkkhan@gmail.com"})
+    /* ===============================
+       1️⃣ Parents find by EMAIL
+    =============================== */
+    const parents = await User.find({
+      email: { $in: ["mkkhan@gmail.com", "salim@gmail.com"] },
+    });
 
-        // "morning","evening","parentSend"
-    const bodyData={
-           title:`${req.user.name} completed a task`,
-            description:todo.title,
-          forChild: false,
-          ReminderType: "parentSend",
-          sendTo:[parent._id.toString()],
-        }
-        const newNotification= await Notification.create(bodyData)
-        await newNotification.save()
+    /* ===============================
+       2️⃣ Extract FCM tokens safely
+    =============================== */
+    const fcmTokens = parents
+      .flatMap(user => user.fcmToken || [])
+      .filter(Boolean);
 
-        await sendPushNotification({
-          tokens: parent.fcmToken,
-          title:`${req.user.name}  completed a task`,
-          body:todo.title,
-        });     
-      
+    const uniqueTokens = [...new Set(fcmTokens)];
+
+    console.log("✅ Parent FCM Tokens:", uniqueTokens);
+
+    /* ===============================
+       3️⃣ Save notification in DB
+    =============================== */
+    const bodyData = {
+      title: `${req.user.name} completed a task`,
+      description: todo.title,
+      forChild: false,
+      ReminderType: "parentSend",
+      sendTo: parents.map(p => p._id.toString()),
+    };
+
+    const newNotification = await Notification.create(bodyData);
+
+    /* ===============================
+       4️⃣ Send push notification
+    =============================== */
+    if (uniqueTokens.length > 0) {
+      await sendPushNotification({
+        tokens: uniqueTokens,
+        title: `${req.user.name} completed a task`,
+        body: todo.title,
+      });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Task done successfully",
     });
+
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 
 
 exports.profile=async (req,res)=>{

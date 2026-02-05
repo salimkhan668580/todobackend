@@ -39,7 +39,7 @@ app.post("/api/pushNotification", async (req, res) => {
  
 
     await helper.sendPushNotification({
-      tokens: token, // ✅ array
+      tokens: token, 
       title,
       body,
     });
@@ -64,6 +64,6 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server running on port ${port}`);
+});
