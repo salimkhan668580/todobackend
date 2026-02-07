@@ -114,23 +114,31 @@ exports.create = async (req, res) => {
     /* ===============================
        2️⃣ Find parent by email
     =============================== */
-    const parent = await User.findOne({
-      email: "mkkhan@gmail.com",
-    });
+    const parentEmails = [
+  "mkkhan@gmail.com",
+  "ujalakhan235@gmail.com",
+  "salim@gmail.com"
+];
+const parents = await User.find({
+  email: { $in: parentEmails }
+});
+
+  //  3️⃣ Extract userIds
+
+const parentIds = parents.map(p => p._id.toString());
 
     /* ===============================
        3️⃣ Save notification in DB
     =============================== */
-    if (parent) {
-      const bodyData = {
-        title: `${user.name} added a new task`,
-        description: title,
-        forChild: false,
-        ReminderType: "parentSend",
-        sendTo: [parent._id.toString()],
-      };
-
-      await Notification.create(bodyData);
+   if (parentIds.length > 0) {
+  const bodyData = {
+    title: `${user.name} added a new task`,
+    description: title,
+    forChild: false,
+    ReminderType: "parentSend",
+    sendTo: parentIds,
+  };
+    await Notification.create(bodyData);
 
       /* ===============================
          4️⃣ Extract FCM tokens safely
@@ -359,69 +367,69 @@ exports.profile=async (req,res)=>{
 
 
 // =================notification=========
-exports.notification= async(req, res) => {
-
+exports.notification = async (req, res) => {
   try {
-      const {page,limit}=req.query
-      const userId=req.user._id;
+    const { page, limit } = req.query;
+    const userId = req.user._id;
 
-      const pageNo=Number(page||"1");
-      const pageLimit=Number(limit||"10");
-      const skip = (pageNo - 1) * pageLimit;
+    const pageNo = Number(page || "1");
+    const pageLimit = Number(limit || "10");
+    const skip = (pageNo - 1) * pageLimit;
 
-
-
-      if(!userId){
-          return res.status(400).json({
-              success: false,
-              message: "You have must login"
-          })
-      }
-
-      const matcher = {
-        sendTo: { $in: [userId.toString()] }
-      };
-
-      console.log(matcher)
-
-      const notification=await Notification.aggregate([
-        {
-          $match:matcher
-        },
-        { $sort: { createdAt: -1 } },
-        { $skip: skip }, 
-        { $limit: pageLimit }
-      ]);
-
-const totalDoc=await Notification.countDocuments(matcher)
-              
-      res.status(200).json({
-        success: true,
-        message: "Todos fetched successfully",
-        data: notification,
-        pagination:{
-
-          page: pageNo,
-          limit: pageLimit,
-          total:totalDoc,
-          totalPage: Math.ceil(totalDoc / pageLimit)
-
-        }
-        
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "You must login"
       });
-  
+    }
 
-      
+    const matcher = {
+      sendTo: { $in: [userId.toString()] }
+    };
+
+    // 1️⃣ Fetch notifications
+    const notifications = await Notification.aggregate([
+      { $match: matcher },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: pageLimit }
+    ]);
+
+    // 2️⃣ Unread notifications ko read mark karo
+    const notificationIds = notifications
+      .filter(n => n.isRead === false)
+      .map(n => n._id);
+
+    if (notificationIds.length > 0) {
+      await Notification.updateMany(
+        { _id: { $in: notificationIds } },
+        { $set: { isRead: true } }
+      );
+    }
+
+    const totalDoc = await Notification.countDocuments(matcher);
+
+    res.status(200).json({
+      success: true,
+      message: "Notifications fetched successfully",
+      data: notifications,
+      pagination: {
+        page: pageNo,
+        limit: pageLimit,
+        total: totalDoc,
+        totalPage: Math.ceil(totalDoc / pageLimit)
+      }
+    });
+
   } catch (error) {
-      console.log(error)
-       res.status(500).json({
+    console.log(error);
+    res.status(500).json({
       success: false,
       message: "Internal Server Error"
-  })
-      
+    });
   }
- 
-}
+};
+
 
 
 
