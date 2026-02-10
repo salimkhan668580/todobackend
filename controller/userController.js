@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const User=require("../modal/UserModal")
 const Notification=require("../modal/NotificationModal");
 const { sendPushNotification } = require("../helper/helper");
+const NotificationQueue = require("../helper/notificationQueue/NotificationQueue");
 
 exports.getTodo= async(req, res) => {
 
@@ -87,7 +88,7 @@ exports.getTodo= async(req, res) => {
 exports.create = async (req, res) => {
   try {
     const { title } = req.body;
-    const user = req.user; // 👈 full user object
+    const user = req.user;
 
     if (!title) {
       return res.status(400).json({
@@ -106,62 +107,66 @@ exports.create = async (req, res) => {
     /* ===============================
        1️⃣ Create Todo
     =============================== */
-    const newTodo = await Todo.create({
+    await Todo.create({
       title,
       userId: user._id,
     });
 
     /* ===============================
-       2️⃣ Find parent by email
+       2️⃣ Find parents by email
     =============================== */
     const parentEmails = [
-  "mkkhan@gmail.com",
-  "ujalakhan235@gmail.com",
-  "salim@gmail.com"
-];
-const parents = await User.find({
-  email: { $in: parentEmails }
-});
+      "mkkhan@gmail.com",
+      "ujalakhan235@gmail.com",
+      "salim@gmail.com",
+    ];
 
-  //  3️⃣ Extract userIds
+    const parents = await User.find({
+      email: { $in: parentEmails },
+      fcmToken: { $exists: true, $ne: [] },
+    });
 
-const parentIds = parents.map(p => p._id.toString());
+    if (!parents.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Task created (no parents found)",
+      });
+    }
 
     /* ===============================
-       3️⃣ Save notification in DB
+       3️⃣ Extract parent IDs
     =============================== */
-   if (parentIds.length > 0) {
-  const bodyData = {
-    title: `${user.name} added a new task`,
-    description: title,
-    forChild: false,
-    ReminderType: "parentSend",
-    sendTo: parentIds,
-  };
-    await Notification.create(bodyData);
+    const parentIds = parents.map(p => p._id.toString());
 
-      /* ===============================
-         4️⃣ Extract FCM tokens safely
-      =============================== */
-      const fcmTokens = Array.isArray(parent.fcmToken)
-        ? parent.fcmToken
-        : [];
+    /* ===============================
+       4️⃣ Save ONE notification
+    =============================== */
+    const notification = await Notification.create({
+      title: `${user.name} added a new task`,
+      description: title,
+      forChild: false,
+      ReminderType: "parentSend",
+      status: "PENDING",
+      sendTo: parentIds, // ✅ multiple parents
+    });
 
-      const uniqueTokens = [...new Set(fcmTokens)];
+    /* ===============================
+       5️⃣ Collect ALL FCM tokens
+    =============================== */
+    const allTokens = parents.flatMap(p =>
+      Array.isArray(p.fcmToken) ? p.fcmToken : []
+    );
 
-      console.log("✅ Parent FCM Tokens:", uniqueTokens);
+    const uniqueTokens = [...new Set(allTokens)];
 
-      /* ===============================
-         5️⃣ Send push notification
-      =============================== */
-      if (uniqueTokens.length > 0) {
-        await sendPushNotification({
-          tokens: uniqueTokens,
-          title: `${user.name} added a new task`,
-          body: title,
-        });
-      }
-    }
+    console.log("✅ Parent FCM Tokens:", uniqueTokens);
+
+    /* ===============================
+       6️⃣ Send push notification
+    =============================== */
+    if (uniqueTokens.length > 0) {
+      await NotificationQueue.add('notificationJob',  { notificationId: notification._id});
+        }
 
     return res.status(200).json({
       success: true,
@@ -176,6 +181,7 @@ const parentIds = parents.map(p => p._id.toString());
     });
   }
 };
+
 
 
 exports.delete = async (req, res) => {
@@ -231,23 +237,11 @@ exports.markDone = async (req, res) => {
        1️⃣ Parents find by EMAIL
     =============================== */
     const parents = await User.find({
-      email: { $in: ["mkkhan@gmail.com", "salim@gmail.com"] },
+      email: { $in: ["mkkhan@gmail.com", "salim@gmail.com","ujalakhan235@gmail.com"] },
     });
 
-    /* ===============================
-       2️⃣ Extract FCM tokens safely
-    =============================== */
-    const fcmTokens = parents
-      .flatMap(user => user.fcmToken || [])
-      .filter(Boolean);
+  
 
-    const uniqueTokens = [...new Set(fcmTokens)];
-
-    console.log("✅ Parent FCM Tokens:", uniqueTokens);
-
-    /* ===============================
-       3️⃣ Save notification in DB
-    =============================== */
     const bodyData = {
       title: `${req.user.name} completed a task`,
       description: todo.title,
@@ -258,16 +252,9 @@ exports.markDone = async (req, res) => {
 
     const newNotification = await Notification.create(bodyData);
 
-    /* ===============================
-       4️⃣ Send push notification
-    =============================== */
-    if (uniqueTokens.length > 0) {
-      await sendPushNotification({
-        tokens: uniqueTokens,
-        title: `${req.user.name} completed a task`,
-        body: todo.title,
-      });
-    }
+    await NotificationQueue.add('notificationJob', {
+      notificationId: newNotification._id.toString(),
+    });
 
     return res.status(200).json({
       success: true,

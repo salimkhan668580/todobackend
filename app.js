@@ -1,25 +1,36 @@
 const express = require('express')
 const dbConnect = require("./db/dbConnect");
 const app = express()
+require('dotenv').config()
 const authRoute = require('./routes/Auth');
 const parentRoute= require('./routes/ParentRoute');
 const userRoute= require('./routes/userRoute');
 const morgan = require('morgan');
 const helper = require('./helper/helper');
 const tokenRoute = require('./routes/TokenRoute');
+const cronJob = require('./cronJob');
+require('./helper/notificationQueue/NotificationWorker');
+require('./helper/notificationQueue/NotificationQueue');
+
 
 const port = 3000
 
 dbConnect(); 
 
 
+
+
 app.use(express.json());
 app.use(morgan('dev'))
+cronJob.eveningReminderJob.start();
+cronJob.morningReminderJob.start();
+
 
 app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
 app.use('/api/parent', parentRoute);
 app.use('/api/token', tokenRoute);
+
 
 
 

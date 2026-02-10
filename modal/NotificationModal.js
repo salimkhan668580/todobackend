@@ -26,6 +26,11 @@ const notificationSchema = new mongoose.Schema({
         type:Boolean,
         default:false
     },
+    status:{
+        type:String,
+        enum:["PENDING","SENT","FAILED"],
+        default:"PENDING"
+    },
      ReminderType: {
         type: String,
         enum:["morning","evening","parentSend"],

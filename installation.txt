@@ -1,13 +1,21 @@
 docker stop todo-backend
 docker rm todo-backend
 
-docker build -t todo-backend .
+docker-compose up -d app redis
+
+
+docker run -d \
+  --name redis \
+  --restart unless-stopped \
+  redis:7.2
 
 
 docker run -d \
   --name todo-backend \
   -p 4002:3000 \
   --restart unless-stopped \
+  --env-file .env \
+  --link redis \
   todo-backend
 
 docker logs -f todo-backend

@@ -1,13 +1,31 @@
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const admin = require("firebase-admin");
-const serviceAccountPath = path.resolve(__dirname, "../notification.json");
-const serviceAccount = require(serviceAccountPath);
 
-// ADD THIS LOG to verify the project ID matches your new file
-console.log("Firebase initializing for project:", serviceAccount.project_id);
+const serviceAccountPath = path.resolve(__dirname, "../notification.json");
+// const serviceAccount = require(serviceAccountPath);
+
+
+
 
 require("dotenv").config();
+
+
+
+const serviceAccount = {
+  type: "service_account",
+  project_id: process.env.PROJECT_ID,
+  private_key_id: process.env.PRIVATE_KEY_ID,
+  client_email: process.env.CLIENT_EMAIL,
+  private_key: process.env.PRIVATE_KEY.replace(/\\n/g, "\n"),
+  client_id:process.env.CLIENT_ID,
+  auth_uri:process.env.AUTH_URI,
+  token_uri:process.env.TOKEN_URI,
+  auth_provider_x509_cert_url:process.env.AUTH_PROVIDER_X509_CERT_URL,
+  client_x509_cert_url:process.env.CLIENT_X509_CERT_URL,
+  universe_domain:process.env.UNIVERSE_DOMAIN
+};
+
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
