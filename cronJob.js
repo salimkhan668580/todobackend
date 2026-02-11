@@ -3,13 +3,14 @@ const Todo = require("./modal/TodoModal");
 const User = require("./modal/UserModal");
 const Notification = require("./modal/NotificationModal");
 const { sendPushNotification } = require("./helper/helper");
+const NotificationQueue = require("./helper/notificationQueue/NotificationQueue");
 
 /* =========================================================
    🌅 MORNING REMINDER
    👉 Children who DID NOT add any task today
 ========================================================= */
 exports.morningReminderJob = new CronJob(
-//   "*/1 * * * *", // ⏱ TEST MODE
+  // "*/1 * * * *", // ⏱ TEST MODE
   "0 5,7,9 * * *", // ✅ PROD
   async () => {
     try {
@@ -40,10 +41,10 @@ exports.morningReminderJob = new CronJob(
       }
 
       const childrenIds = inactiveChildren.map(u => u._id.toString());
-      const allTokens = inactiveChildren.flatMap(u => u.fcmToken);
+
 
       // ✅ SINGLE notification document
-      await Notification.create({
+    const newNotification = await Notification.create({
         sendTo: childrenIds,
         title: "⏰ Task Reminder",
         description: "Aaj aapne koi task add nahi kiya. Abhi add kar lo!",
@@ -51,16 +52,19 @@ exports.morningReminderJob = new CronJob(
         ReminderType: "morning",
       });
 
-      // ✅ SINGLE push call
-      await sendPushNotification({
-        tokens: allTokens,
-        title: "⏰ Task Reminder",
-        body: "Aaj aapne koi task add nahi kiya. Abhi add kar lo!",
-        type: "morning",
-        additionalData: {
-          reminderType: "morning",
-        },
-      });
+      await NotificationQueue.add('notificationJob', {
+        notificationId: newNotification._id,
+      },
+      {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,   // 5 second base delay
+            maxDelay: 20000
+          }
+        }
+    );
+
 
       console.log(`📨 Morning reminder sent to ${childrenIds.length} children`);
     } catch (error) {
@@ -121,10 +125,9 @@ exports.eveningReminderJob = new CronJob(
       if (!childrenUsers.length) return;
 
       const childrenIds = childrenUsers.map(u => u._id.toString());
-      const allTokens = childrenUsers.flatMap(u => u.fcmToken);
 
       // ✅ SINGLE notification document
-      await Notification.create({
+      const newNotification = await Notification.create({
         sendTo: childrenIds,
         title: "🌙 Task Pending Reminder",
         description:
@@ -133,17 +136,9 @@ exports.eveningReminderJob = new CronJob(
         ReminderType: "evening",
       });
 
-      // ✅ SINGLE push call
-      await sendPushNotification({
-        tokens: allTokens,
-        title: "🌙 Task Pending Reminder",
-        body:
-          "Aapne aaj task add kiya hai, lekin abhi tak complete nahi kiya. Kripya task complete karein.",
-        type: "evening",
-        additionalData: {
-          reminderType: "evening",
-        },
-      });
+await NotificationQueue.add('notificationJob', {
+  notificationId: newNotification._id,
+});
 
       console.log(`📨 Evening reminder sent to ${childrenIds.length} children`);
     } catch (error) {

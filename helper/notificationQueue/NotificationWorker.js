@@ -17,6 +17,10 @@ const notificationWorker = new Worker(
   'notificationQueue',
   async (job) => {
     const { notificationId } = job.data;
+    if(notificationId=="test-fail"){
+      throw new Error("Intentional failure for testing");
+    }
+
     console.log('Notification job received:', job.data);
 
     // 1️⃣ Load notification
@@ -49,17 +53,21 @@ const notificationWorker = new Worker(
     });
 
     // 4️⃣ Update status to SENT
-    await Notification.findByIdAndUpdate(notificationId, { status: 'SENT' });
+
   },
   { connection },
 );
 
-notificationWorker.on('completed', (job) => {
+notificationWorker.on('completed', async (job) => {
+  const { notificationId } = job.data;
+  await Notification.findByIdAndUpdate(notificationId, { status: 'SENT' });
   console.log(`Notification job ${job.id} completed`);
 });
 
-notificationWorker.on('failed', (job, error) => {
-  console.log(`Notification job ${job.id} failed with error: ${error}`);
+notificationWorker.on('failed', async (job, error) => {
+  const { notificationId } = job.data;
+  await Notification.findByIdAndUpdate(notificationId, { status: 'FAILED' });
+  console.log(`Notification job ${job.id} failed with error: ${error.message}`);
 });
 
 module.exports = { notificationWorker, connection };

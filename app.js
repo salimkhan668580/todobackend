@@ -10,14 +10,15 @@ const helper = require('./helper/helper');
 const tokenRoute = require('./routes/TokenRoute');
 const cronJob = require('./cronJob');
 require('./helper/notificationQueue/NotificationWorker');
-require('./helper/notificationQueue/NotificationQueue');
+const NotificationQueue = require('./helper/notificationQueue/NotificationQueue');
 
+const port = 3000;
 
-const port = 3000
+dbConnect();
 
-dbConnect(); 
-
-
+// =========== bull-board v1: adapters from main package, use setQueues ==========
+const { router, setQueues, BullMQAdapter } = require('bull-board');
+setQueues([new BullMQAdapter(NotificationQueue)]);
 
 
 app.use(express.json());
@@ -25,7 +26,7 @@ app.use(morgan('dev'))
 cronJob.eveningReminderJob.start();
 cronJob.morningReminderJob.start();
 
-
+app.use('/admin/queues', router)
 app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
 app.use('/api/parent', parentRoute);
