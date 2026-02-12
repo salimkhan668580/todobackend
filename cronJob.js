@@ -49,6 +49,7 @@ exports.morningReminderJob = new CronJob(
         title: "⏰ Task Reminder",
         description: "Aaj aapne koi task add nahi kiya. Abhi add kar lo!",
         forChild: true,
+        status: "PENDING",
         ReminderType: "morning",
       });
 
@@ -133,6 +134,7 @@ exports.eveningReminderJob = new CronJob(
         description:
           "Aapne aaj task add kiya hai, lekin abhi tak complete nahi kiya. Kripya task complete karein.",
         forChild: true,
+        status: "PENDING",
         ReminderType: "evening",
       });
 

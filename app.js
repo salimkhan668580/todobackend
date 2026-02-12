@@ -16,21 +16,31 @@ const port = 3000;
 
 dbConnect();
 
-// =========== bull-board v1: adapters from main package, use setQueues ==========
-const { router, setQueues, BullMQAdapter } = require('bull-board');
-setQueues([new BullMQAdapter(NotificationQueue)]);
+const { createBullBoard } = require('@bull-board/api');
+const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
+const { ExpressAdapter } = require('@bull-board/express');
+
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+createBullBoard({
+  queues: [new BullMQAdapter(NotificationQueue)],
+  serverAdapter,
+});
+
+
+
 
 
 app.use(express.json());
 app.use(morgan('dev'))
 cronJob.eveningReminderJob.start();
 cronJob.morningReminderJob.start();
-
-app.use('/admin/queues', router)
 app.use('/api/auth', authRoute);
 app.use('/api/user', userRoute);
 app.use('/api/parent', parentRoute);
 app.use('/api/token', tokenRoute);
+app.use('/admin/queues', serverAdapter.getRouter());
 
 
 
